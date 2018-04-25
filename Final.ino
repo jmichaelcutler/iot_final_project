@@ -29,13 +29,14 @@
 AlertNode node;
 
 const String name = "Smart Lamp";
+const int lightLevel = 300;
 
-const int pResistor = A0;
+const int PRESISTOR = A0;
 
 // Color settings present
-int currentRed = 0;
+int currentRed = 255;
 int currentGreen = 255;
-int currentBlue = 0;
+int currentBlue = 255;
 
 // Stored previous color settings
 int prevRed = 255;
@@ -43,11 +44,11 @@ int prevGreen = 255;
 int prevBlue = 255;
 
 int defaultRed = 0;
-int defaultGreen = 255;
+int defaultGreen = 0;
 int defaultBlue = 0;
 
 bool timerOn = false;
-bool solarOn = false;
+bool solarOn = true;
 bool lightOn = false;
 
 int onHour = 0;
@@ -126,13 +127,13 @@ void error(const __FlashStringHelper*err) {
 /**************************************************************************/
 void setup(void)
 {
-  pinMode(pResistor, INPUT);
+  pinMode(PRESISTOR, INPUT);
   pinMode(REDPIN, OUTPUT);
   pinMode(GREENPIN, OUTPUT);
   pinMode(BLUEPIN, OUTPUT);
-  analogWrite(REDPIN, currentRed);
-  analogWrite(BLUEPIN, currentBlue);
-  analogWrite(GREENPIN, currentGreen);
+  analogWrite(REDPIN, defaultRed);
+  analogWrite(BLUEPIN, defaultBlue);
+  analogWrite(GREENPIN, defaultGreen);
 
   while (!Serial);  // required for Flora & Micro
   delay(500);
@@ -194,6 +195,7 @@ void setup(void)
   Serial.println(F("******************************"));
 
   node.setDebug(false);
+  node.begin(name); 
 
 }
 
@@ -204,78 +206,38 @@ void setup(void)
 /**************************************************************************/
 void loop(void)
 {
-  
   checkAlert();
-  //checkTimer();
-  //checkSolar();
+  if(timerOn) {
+    checkTimer();
+  }
+  if(solarOn) {
+    checkSolar();
+  }
   analogWrite(REDPIN, currentRed);
   analogWrite(BLUEPIN, currentBlue);
   analogWrite(GREENPIN, currentGreen);
-  ble.println("test");
-  ble.waitForOK();
-
-    while (ble.available()) {
+  
+  while (ble.available()) {
+    checkAlert();
+    int c = ble.read();
+    if (c == 49) {
+      deactivate();
+    }
+    else if (c == 50) {
+      selectMode();
+    } else if (c == 51) {
+      chooseColor();
+    } else if (c == 115) {
       ble.print("Select an option:\n");
       ble.print("1) Turn lamp off\n");
       ble.print("2) Turn lamp on or select mode\n");
       ble.print("3) Select lamp color\n");
-      int c = ble.readline();
-      ble.println(c);
-
-      String input = ble.buffer;
-      ble.println(input);
-
-      if (c == '1' - '0') {
-        deactivate();
-//        done = true;
-      }
-      else if (c == '2' - '0') {
-        selectMode();
-//        done = true;
-      } else if (c == '3' - '0') {
-        chooseColor();
-//        done = true;
-      } else {
-        ble.println("Unknown command");
-//        done = false;
-      }
+    } else {
+      ble.println("Unknown command");
+      
     }
   }
-
-//  while (ble.available()) {
-
-//    bool done = false;
-//    while (!done) {
-//      checkAlert();
-//
-//      bool received = false;
-//      while (!received) {
-//        char command[BUFSIZE + 1];
-//        getUserInput(command, BUFSIZE);
-//        received = true;
-//        if (strcmp(ble.buffer, "OK") == 0) {
-//          received = false;
-//          return;
-//        } else if (strcmp(ble.buffer, "1") == 0) {
-//          deactivate();
-//          done = true;
-//        } else if (strcmp(ble.buffer, "2") == 0) {
-//          selectMode();
-//          done = true;
-//        } else if (strcmp(ble.buffer, "3") == 0) {
-//          chooseColor();
-//          done = true;
-//        } else {
-//          ble.println("Unknown command");
-//          done = false;
-//        }
-//      }
-//    }
-//  }
-//ble.waitForOK();
-//}
 }
-
 
 void activate() {
   lightOn = true;
@@ -301,24 +263,30 @@ void selectMode() {
   } else {
     ble.println("Timer mode");
   }
-  while (!done) {
+  while (ble.available()) {
     checkAlert();
-    ble.println("Select light mode: ");
-    ble.println("\t1) On");
-    ble.println("\t2) Light sensor mode. Lamp will turn on when room is dark and turn off when it isn't.");
-    ble.println("\t3) Timer mode. Lamp will activate and deactivate at set times.");
     int c = ble.read();
+    Serial.print("mode menu value of c: ");
+    Serial.println(c);
     done = true;
     switch (c) {
-      case 1:
-        activate();
+      case 50:
+        ble.println("Select light mode: ");
+        ble.println("\t2) On");
+        ble.println("\t3) Light sensor mode. Lamp will turn on when room is dark and turn off when it isn't.");
+        ble.println("\t4) Timer mode. Lamp will activate and deactivate at set times.");
+      case 51:
+        Serial.println("Lamp should turn on");
+        //activate();
         break;
-      case 2:
-        solarOn = true;
-        timerOn = false;
+      case 52:
+        Serial.println("Solar mode should turn on");
+//        solarOn = true;
+//        timerOn = false;
         break;
-      case 3:
-        setTimer();
+      case 53:
+        Serial.println("Timer mode should activate");
+        //setTimer();
         timerOn = true;
         solarOn = false;
         break;
@@ -328,45 +296,44 @@ void selectMode() {
         break;
     }
   }
-
-
 }
 
 void chooseColor() {
-  bool done = false;
-  while (!done) {
+  while (ble.available()) {
     checkAlert();
-    ble.println("Select a color option:");
-    ble.println("\t1) Red");
-    ble.println("\t2) Green");
-    ble.println("\t3) Blue");
-    ble.println("\t4) Create color ");
-    ble.println("\t5) Randomly generate color");
-    ble.println("\t6) Use previous color");
+    
     int c = ble.read();
-    done = true;
+    Serial.print("Choose color c: ");
+    Serial.println(c);
     switch (c) {
-      case 1:
+      case 51:
+        ble.println("Select a color option:");
+        ble.println("\t4) Red");
+        ble.println("\t5) Green");
+        ble.println("\t6) Blue");
+        ble.println("\t7) Create color ");
+        ble.println("\t8) Randomly generate color");
+        ble.println("\t9) Use previous color");
+      case 52:
         setColor(0, 255, 255);
         break;
-      case 2:
+      case 53:
         setColor(255, 0, 255);
         break;
-      case 3:
+      case 54:
         setColor(255, 255, 0);
         break;
-      case 4:
+      case 55:
         createColor();
         break;
-      case 5:
+      case 56:
         createRandomColor();
         break;
-      case 6:
+      case 57:
         setColor(prevRed, prevGreen, prevBlue);
         break;
       default:
         ble.println("Unknown command");
-        done = false;
         break;
     }
   }
@@ -385,44 +352,38 @@ void setColor(int red, int green, int blue) {
 }
 
 void createColor() {
-  bool done = false;
   int red;
   int green;
   int blue;
-  while (!done) {
+  //Select red value;
+  while (ble.available()) {
     checkAlert();
-    done = true;
     ble.print("Select a red value (0 - 255):");
     red = ble.read();
     if (red < 0 || red > 255) {
       ble.println("Invalid entry");
-      done = false;
     }
   }
-  done = false;
-  while (!done) {
+
+  // Select green value
+  while (ble.available()) {
     checkAlert();
-    done = true;
     ble.print("Select a green value (0 - 255):");
     green = ble.read();
     if (green < 0 || green > 255) {
       ble.println("Invalid entry");
-      done = false;
     }
   }
-  done = false;
-  while (!done) {
+
+  // Select blue value
+  while (ble.available()) {
     checkAlert();
-    done = true;
     ble.print("Select a blue value (0 - 255):");
     blue = ble.read();
     if (blue < 0 || blue > 255) {
       ble.println("Invalid entry");
-      done = false;
     }
   }
-
-  ble.print("Select a blue value (0 - 255):");
   blue = ble.read();
   setColor(255 - red, 255 - green, 255 - blue);
 }
@@ -505,19 +466,21 @@ void checkTimer() {
 }
 
 void checkSolar() {
-  if (solarOn) {
-    int value = analogRead(pResistor);
-    if (value <= 400 && !lightOn) {
+    int value = analogRead(PRESISTOR);
+    Serial.println(value);
+    if (value <= lightLevel && !lightOn) {
       activate();
     } else if (value > 400 && lightOn) {
       deactivate();
     }
-  }
 }
 
 void checkAlert() {
   int alert = node.alertReceived();
+//  Serial.print("Alert code: ");
+//  Serial.println(alert);
   if (alert != AlertNode::NO_ALERT) {
+    Serial.println("ALERT RECEIVED");
     switch (alert) {
       case AlertNode::FIRE:
         displayAlert(0, 255, 255);
@@ -579,18 +542,18 @@ void displayAlert(int red, int green, int blue) {
   }
 }
 
-void getUserInput(char buffer[], uint8_t maxSize)
-{
-  memset(buffer, 0, maxSize);
-  while ( Serial.available() == 0 ) {
-    delay(1);
-  }
-
-  uint8_t count = 0;
-
-  do
-  {
-    count += Serial.readBytes(buffer + count, maxSize);
-    delay(2);
-  } while ( (count < maxSize) && !(Serial.available() == 0) );
-}
+//void getUserInput(char buffer[], uint8_t maxSize)
+//{
+//  memset(buffer, 0, maxSize);
+//  while ( Serial.available() == 0 ) {
+//    delay(1);
+//  }
+//
+//  uint8_t count = 0;
+//
+//  do
+//  {
+//    count += Serial.readBytes(buffer + count, maxSize);
+//    delay(2);
+//  } while ( (count < maxSize) && !(Serial.available() == 0) );
+//}

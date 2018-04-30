@@ -47,15 +47,8 @@ int defaultRed = 0;
 int defaultGreen = 0;
 int defaultBlue = 0;
 
-bool timerOn = false;
 bool solarOn = true;
 bool lightOn = false;
-
-int onHour = 0;
-int onMinute = 0;
-
-int offHour = 0;
-int offMinute = 0;
 
 /*=========================================================================
     APPLICATION SETTINGS
@@ -207,9 +200,6 @@ void setup(void)
 void loop(void)
 {
   checkAlert();
-  if(timerOn) {
-    checkTimer();
-  }
   if(solarOn) {
     checkSolar();
   }
@@ -222,19 +212,39 @@ void loop(void)
     int c = ble.read();
     if (c == 49) {
       deactivate();
-    }
-    else if (c == 50) {
-      selectMode();
+      ble.println("Lamp deactivated!");
+    } else if (c == 50) {
+      activate();
+      ble.println("Lamp activated!");
     } else if (c == 51) {
-      chooseColor();
+      setColor(0, 255, 255);
+      ble.println("Color set!");
+    } else if(c == 52) {
+      setColor(0, 0, 255);
+      ble.println("Color set!");
+    } else if(c == 53) {
+      setColor(0, 0, 0);
+      ble.println("Color set!");
+    } else if(c == 54) {
+      createRandomColor();
+      ble.println("Color set!");
+    } else if(c == 55) {
+      solarOn = true;
+      ble.println("Solar mode activated!");
+    } else if(c == 56) {
+      solarOn = false;
+      ble.println("Solar mode deactivated!");
     } else if (c == 115) {
       ble.print("Select an option:\n");
       ble.print("1) Turn lamp off\n");
-      ble.print("2) Turn lamp on or select mode\n");
-      ble.print("3) Select lamp color\n");
+      ble.print("2) Turn lamp on\n");
+      ble.print("3) Set lamp color to red\n");
+      ble.print("4) Set lamp color to yellow\n");
+      ble.print("5) Set lamp color to white\n");
+      ble.print("6) Set lamp color to a randomly chosen color");
+      ble.print("7) Activate solar mode\n");
     } else {
       ble.println("Unknown command");
-      
     }
   }
 }
@@ -253,92 +263,6 @@ void deactivate() {
   lightOn = false;
 }
 
-void selectMode() {
-  bool done = false;
-  ble.print("Current mode: ");
-  if (!solarOn && !timerOn) {
-    ble.println("Manual operation");
-  } else if (solarOn) {
-    ble.println("Light sensor mode");
-  } else {
-    ble.println("Timer mode");
-  }
-  while (ble.available()) {
-    checkAlert();
-    int c = ble.read();
-    Serial.print("mode menu value of c: ");
-    Serial.println(c);
-    done = true;
-    switch (c) {
-      case 50:
-        ble.println("Select light mode: ");
-        ble.println("\t2) On");
-        ble.println("\t3) Light sensor mode. Lamp will turn on when room is dark and turn off when it isn't.");
-        ble.println("\t4) Timer mode. Lamp will activate and deactivate at set times.");
-      case 51:
-        Serial.println("Lamp should turn on");
-        //activate();
-        break;
-      case 52:
-        Serial.println("Solar mode should turn on");
-//        solarOn = true;
-//        timerOn = false;
-        break;
-      case 53:
-        Serial.println("Timer mode should activate");
-        //setTimer();
-        timerOn = true;
-        solarOn = false;
-        break;
-      default:
-        ble.println("Unknown command");
-        done = false;
-        break;
-    }
-  }
-}
-
-void chooseColor() {
-  while (ble.available()) {
-    checkAlert();
-    
-    int c = ble.read();
-    Serial.print("Choose color c: ");
-    Serial.println(c);
-    switch (c) {
-      case 51:
-        ble.println("Select a color option:");
-        ble.println("\t4) Red");
-        ble.println("\t5) Green");
-        ble.println("\t6) Blue");
-        ble.println("\t7) Create color ");
-        ble.println("\t8) Randomly generate color");
-        ble.println("\t9) Use previous color");
-      case 52:
-        setColor(0, 255, 255);
-        break;
-      case 53:
-        setColor(255, 0, 255);
-        break;
-      case 54:
-        setColor(255, 255, 0);
-        break;
-      case 55:
-        createColor();
-        break;
-      case 56:
-        createRandomColor();
-        break;
-      case 57:
-        setColor(prevRed, prevGreen, prevBlue);
-        break;
-      default:
-        ble.println("Unknown command");
-        break;
-    }
-  }
-}
-
 void setColor(int red, int green, int blue) {
   if (currentRed != 255 && currentGreen != 255 && currentBlue != 255) {
     prevRed = currentRed;
@@ -351,43 +275,6 @@ void setColor(int red, int green, int blue) {
   currentBlue = blue;
 }
 
-void createColor() {
-  int red;
-  int green;
-  int blue;
-  //Select red value;
-  while (ble.available()) {
-    checkAlert();
-    ble.print("Select a red value (0 - 255):");
-    red = ble.read();
-    if (red < 0 || red > 255) {
-      ble.println("Invalid entry");
-    }
-  }
-
-  // Select green value
-  while (ble.available()) {
-    checkAlert();
-    ble.print("Select a green value (0 - 255):");
-    green = ble.read();
-    if (green < 0 || green > 255) {
-      ble.println("Invalid entry");
-    }
-  }
-
-  // Select blue value
-  while (ble.available()) {
-    checkAlert();
-    ble.print("Select a blue value (0 - 255):");
-    blue = ble.read();
-    if (blue < 0 || blue > 255) {
-      ble.println("Invalid entry");
-    }
-  }
-  blue = ble.read();
-  setColor(255 - red, 255 - green, 255 - blue);
-}
-
 void createRandomColor() {
   randomSeed(analogRead(0));
   int red = random(256);
@@ -396,73 +283,6 @@ void createRandomColor() {
   randomSeed(analogRead(0));
   int blue = random(256);
   setColor(red, green, blue);
-}
-
-void setTimer() {
-  bool done = false;
-  ble.println("Setting activation time.");
-
-  //Set on hour
-  while (!done) {
-    checkAlert();
-    ble.println("Please set activation hour (0 - 23)");
-    int hour = ble.read();
-    if (hour < 0 || hour > 23) {
-      ble.println("Illegal value");
-    } else {
-      onHour = hour;
-      done = true;
-    }
-  }
-  done = false;
-  while (!done) {
-    checkAlert();
-    ble.println("Please set activation minute (0 - 59)");
-    int minute = ble.read();
-    if (minute < 0 || minute > 59) {
-      ble.println("Illegal value");
-    } else {
-      onMinute = minute;
-      done = true;
-    }
-  }
-  done = false;
-  while (!done) {
-    checkAlert();
-    ble.println("Please set deactivation hour (0 - 23)");
-    int hour = ble.read();
-    if (hour < 0 || hour > 23) {
-      ble.println("Illegal value");
-    } else {
-      onHour = hour;
-      done = true;
-    }
-  }
-  done = false;
-  while (!done) {
-    checkAlert();
-    ble.println("Please set deactivation minute (0 - 59)");
-    int minute = ble.read();
-    if (minute < 0 || minute > 59) {
-      ble.println("Illegal value");
-    } else {
-      onMinute = minute;
-      done = true;
-    }
-  }
-  ble.println("Times set!");
-}
-
-void checkTimer() {
-  if (timerOn) {
-    if (hour() == onHour && minute() == onMinute) {
-      lightOn = true;
-      activate();
-    } else if (hour() == offHour && minute() == offMinute) {
-      lightOn = false;
-      deactivate();
-    }
-  }
 }
 
 void checkSolar() {
@@ -477,8 +297,6 @@ void checkSolar() {
 
 void checkAlert() {
   int alert = node.alertReceived();
-//  Serial.print("Alert code: ");
-//  Serial.println(alert);
   if (alert != AlertNode::NO_ALERT) {
     Serial.println("ALERT RECEIVED");
     switch (alert) {
@@ -486,46 +304,46 @@ void checkAlert() {
         displayAlert(0, 255, 255);
         break;
       case AlertNode::GAS:
-        displayAlert(127, 0, 255);
+        displayAlert(101, 50, 205);
         break;
       case AlertNode::FLOOD:
         displayAlert(255, 255, 0);
         break;
       case AlertNode::BURGLARY:
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 60; i++) {
           analogWrite(REDPIN, 0);
           analogWrite(BLUEPIN, 255);
           analogWrite(GREENPIN, 255);
-          delay(1000);
+          delay(500);
           analogWrite(REDPIN, 255);
           analogWrite(BLUEPIN, 0);
           analogWrite(GREENPIN, 255);
-          delay(1000);
+          delay(500);
         }
         break;
       case AlertNode::EARTHQUAKE:
-        displayAlert(102, 179, 255);
+        displayAlert(90, 213, 213);
         break;
       case AlertNode::ZOMBIE:
-        displayAlert(95, 95, 95);
+        displayAlert(86, 86, 86);
         break;
       case AlertNode::APOCALYPSE:
-        displayAlert(128, 255, 0);
+        displayAlert(127, 0, 255);
         break;
       case AlertNode::WAKE_MODE:
-        solarOn = false;
-        timerOn = false;
-        activate();
+        solarOn = true;
         break;
+      case AlertNode::OVERRIDE:
+        solarOn = false;
+        activate();
       case AlertNode::SLEEPING_MODE:
         solarOn = false;
-        timerOn = false;
         deactivate();
         break;
       default:
         displayAlert(0, 0, 0);
         break;
-    }
+    }  
   }
 }
 
@@ -541,19 +359,3 @@ void displayAlert(int red, int green, int blue) {
     delay(250);
   }
 }
-
-//void getUserInput(char buffer[], uint8_t maxSize)
-//{
-//  memset(buffer, 0, maxSize);
-//  while ( Serial.available() == 0 ) {
-//    delay(1);
-//  }
-//
-//  uint8_t count = 0;
-//
-//  do
-//  {
-//    count += Serial.readBytes(buffer + count, maxSize);
-//    delay(2);
-//  } while ( (count < maxSize) && !(Serial.available() == 0) );
-//}
